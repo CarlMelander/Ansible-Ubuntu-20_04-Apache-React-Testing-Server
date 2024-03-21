@@ -1,0 +1,74 @@
+---
+- name: Setup Linux server to serve a React website with Apache 
+  hosts: all
+  become: yes  # escalation to install packages
+  vars:
+    domain_name: myDomainName.com # Define domain for ssl
+    apache_conf_dir: /etc/apache2/sites-available
+    apache_ssl_conf: "{{ apache_conf_dir }}/react-app-ssl.conf"
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600  # Updates the cache if it's older than 1 hour
+      ignore_errors: yes
+
+    - name: Install Apache
+      ansible.builtin.apt:
+        name: apache2
+        state: latest
+
+    - name: Install Git
+      ansible.builtin.apt:
+        name: git
+        state: latest
+
+    - name: Clone React project from GitHub
+      ansible.builtin.git:
+        repo: 'github/rep/' # Github Repo 
+        dest: /var/www/react-app
+        version: master  # branch/tag you want to deploy
+     
+    - name: Install nodejs
+      ansible.builtin.apt:
+        name: nodejs
+        state: latest
+        update_cache: yes
+                         
+    - name: Configure Apache to serve the React app
+      ansible.builtin.template:
+        src: /home/adminuser/Desktop/ansible_project/templates/apache_template.j2
+        dest: "{{ apache_conf_dir }}/react-app.conf"
+
+    - name: Generate OpenSSL private key
+      ansible.builtin.openssl_privatekey:
+        path: /etc/ssl/private/{{ domain_name }}.key
+
+    - name: Generate a Self-Signed SSL Certificate
+      ansible.builtin.openssl_certificate:
+        path: /etc/ssl/certs/{{ domain_name }}.crt
+        privatekey_path: /etc/ssl/private/{{ domain_name }}.key
+        provider: selfsigned
+
+    - name: Configure Apache to use Self-Signed SSL
+      ansible.builtin.template:
+        src: /home/adminuser/Desktop/ansible_project/templates/apache_template.j2
+        dest: "{{ apache_ssl_conf }}"
+
+    - name: Enable Apache SSL site and module
+      ansible.builtin.shell: |
+        a2enmod ssl
+        a2ensite react-app-ssl.conf
+      notify: Restart Apache
+
+    - name: Disable default Apache site
+      ansible.builtin.shell: a2dissite 000-default.conf
+      notify: Restart Apache
+
+  handlers:
+    - name: Restart Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+

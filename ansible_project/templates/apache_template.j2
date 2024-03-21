@@ -1,0 +1,49 @@
+<VirtualHost *:80>
+    ServerName {{ domain_name }}
+    DocumentRoot /var/www/react-app/build
+
+    <Directory /var/www/react-app/build>
+        Options FollowSymLinks
+        AllowOverride None
+        Require all granted
+
+        # Serve index.html as the base
+        FallbackResource /index.
+    </Directory>
+
+    # Log file locations
+    ErrorLog ${APACHE_LOG_DIR}/{{ domain_name }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ domain_name }}-access.log combined
+</VirtualHost>
+
+# SSL/HTTPS Configuration for Self-Signed Certificate
+<VirtualHost *:443>
+    ServerName {{ domain_name }}
+    DocumentRoot /var/www/react-app/build
+
+    <Directory /var/www/react-app/build>
+        Options FollowSymLinks
+        AllowOverride None
+        Require all granted
+
+        # Serve index.html as the base
+        FallbackResource /index.html
+    </Directory>
+
+    # SSL Configuration
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/{{ domain_name }}.crt
+    SSLCertificateKeyFile /etc/ssl/private/{{ domain_name }}.key
+    
+    ProxyPreserveHost On
+    ProxyPass / http:localhost:5000/
+    ProxyPassReverse / http:localhost:5000/
+
+    # It's a good practice to also include SSL configurations that you deem necessary for security.
+    # For example, you might want to configure cipher suites, protocols, etc.
+
+    # Log file locations for SSL
+    ErrorLog ${APACHE_LOG_DIR}/{{ domain_name }}-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ domain_name }}-ssl-access.log combined
+</VirtualHost>
+
